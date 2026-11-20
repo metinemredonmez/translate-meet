@@ -1,84 +1,81 @@
-# translate-meet — Roadmap
+# translate-meet — Roadmap (v2)
 
-> Süreler tek tam zamanlı geliştirici + AI asistan varsayımıyla kabadır. Her fazın sonunda "Bitti tanımı" sağlanmadan sonrakine geçilmez.
+> v2 (2026-11-20): Codex'in bağımsız analizi (`docs/codex/CODEX-ANALIZ.md` §9–10) ile birleştirildi.
+> Değişenler: toplantı odası Faz 4'ten **Faz 2'ye** çekildi; ilk uçtan uca çift **TR↔EN**, saha pilotu **TR↔AR**;
+> ilk müşteri hipotezi **ihracatçı KOBİ görüşmeleri**; OpenAI realtime-translate Türkçe çıkış vermediği için Türkçe S2S adayı **Gemini 3.5 Live Translate**;
+> çevrimdışıda NLLB yok (ticari değil); klon ve Practice sona.
+>
+> Süreler kaba: 1–2 geliştirici + AI asistan. Her fazın "Bitti" tanımı sağlanmadan sonrakine geçilmez.
 > Güvenlik P0'ları (bkz. `01-ANALIZ.md` §6) Faz 0–1'de kurulur, sonradan eklenmez.
 
-## Faz 0 — Teknik keşif ve karar (1 hafta)
+## Faz 0 — Ölçüm, iskelet, P0 temeli (2 hafta)
 
-- [ ] Gecikme + kalite ölçümü: TR↔EN, TR↔DE, TR↔AR, TR↔RU, EN↔ES
-  - OpenAI `gpt-realtime-translate`, Gemini Live translate, Soniox iki yönlü + TTS, Azure Live Interpreter
-  - Ölçülecek: ilk ses gecikmesi (TTFA), cümle sonu gecikmesi, dil algılama doğruluğu, gürültüde başarı, dakika maliyeti
-- [ ] Ses klonu denemesi: ElevenLabs IVC (Türkçe kalite), alternatif 1–2 sağlayıcı
-- [ ] Yığın onayı (öneri: Expo 54 + FastAPI, bkz. `04-TASARIM-KAYNAKLARI.md`) + native ses modülü prototipi (AEC, Bluetooth)
-- [ ] Mimari karar kaydı (ADR): relay vs ephemeral token, sağlayıcı yönlendirme tablosu
-- [ ] Marka adı, logo yönü, renk paleti (palet kütüphanesinden)
+- [ ] Pilot corpus (izinli/sentetik): TR↔EN, TR↔AR; isim, sayı, olumsuzluk, aksan, üst üste konuşma, kod değiştirme
+- [ ] Gecikme + kalite + maliyet ölçümü, aynı set ile:
+  - S2S: Gemini 3.5 Live Translate (TR çıkış), Azure Live Interpreter; OpenAI realtime-translate yalnız TR→EN
+  - Kademeli: Soniox `two_way` STT+çeviri → Soniox / ElevenLabs / Cartesia TTS
+  - Ölçüm noktaları: kaynak başı→karşıda ilk anlamlı ses, kaynak sonu→çevirinin tamamı, altyazı ilk görünüm/sabitlenme (p50/p95, yön ve ağ başına)
+  - Alfa hedefi: kararlı altyazı p95 ≤ 1,5 sn, ilk anlamlı ses p95 ≤ 3,0 sn (Wi-Fi referans)
+- [ ] Monorepo iskeleti (pnpm): `apps/mobile` (Expo 54 dev build), `apps/api` (FastAPI), `apps/gateway`, `packages/shared`
+- [ ] CI: tip kontrolü, test, SAST, bağımlılık + secret taraması (`|| true` YOK)
+- [ ] Expo dev build iOS + Android, LiveKit RN / WebRTC mikrofon yolu prototipi (özel PCM köprüsü sadece gerekirse)
+- [ ] ADR'ler `docs/adr/`: taşıma (tek cihaz WS relay vs oda SFU), sağlayıcı yön tablosu, veri bölgesi (AB), kayıt varsayılanı kapalı
+- [ ] P0 kabul listesi + yürütülebilir negatif testler (kimlik, kiracı, oda izni, kota, replay)
 
-**Bitti:** Ölçüm tablosu + seçilen yığın + ADR'ler `docs/adr/` altında.
+**Bitti:** ölçüm tablosu + birincil/yedek sağlayıcı seçimi + ADR'ler + iskelet CI'da yeşil.
 
-## Faz 1 — MVP: konuş ve çevir (5–6 hafta)
+## Faz 1 — Türkçe ilk çeviri: Translate + Converse (3–4 hafta)
 
-- [ ] Monorepo iskeleti: `apps/mobile`, `apps/gateway`, `apps/api`, `packages/shared`
-- [ ] CI: lint, test, SAST, bağımlılık taraması, secret taraması (OPS-04)
-- [ ] Kimlik: Apple / Google ile giriş + e-posta OTP; refresh rotasyonu (SES-*, TOK-*)
-- [ ] Realtime gateway: WS kimlik doğrulama, kota kontrolü, sağlayıcı yönlendirme, fail-closed
-- [ ] **Converse**: iki dil seçimi, otomatik algılama, bölünmüş ekran (karşı taraf için ters yarı), otomatik oynatma, hız 0.5–2.0x
+- [ ] Kimlik: Apple / Google ile giriş (jeton sunucuda doğrulanır) + e-posta OTP; refresh rotasyonu, tekrar kullanımda aile düşer
+- [ ] Gateway: WS kimlik + origin + mesaj yetkisi, kota rezervasyonu (rezerve → tüket → serbest bırak), idempotency, fail-closed
 - [ ] **Translate**: yaz/yapıştır, bas-konuş, kopyala, yer imi
-- [ ] Geçmiş (yerel + bulut senkron, isteğe bağlı)
-- [ ] Onboarding (3–4 slayt) + kullanım amacı anketi
-- [ ] Ayarlar: uygulama dili (TR/EN), konuşma hızı, otomatik oynatma, hesap silme
-- [ ] Abonelik: RevenueCat, paywall (1/6/12 ay), Restore, sunucu tarafı yetki, webhook imza doğrulama
-- [ ] Ücretsiz katman: günlük dakika kotası (RES-01)
-- [ ] Analitik (gizlilik dostu) + çökme raporu
-- [ ] Gizlilik politikası, KVKK aydınlatma, kullanım şartları
+- [ ] **Converse**: TR↔EN, iki dili algıla, bölünmüş ekran, otomatik oynatma, hız 0.5–2.0x; düşük güvende ses yerine düzeltilebilir altyazı
+- [ ] Sessizlik / ağ kopması / izin reddi durumları
+- [ ] Ayarlar: uygulama dili TR/EN, hız, otomatik oynatma, hesap silme
+- [ ] Kullanım ve maliyet ölçümü sağlayıcı faturasıyla mutabık
 
-**Bitti:** TestFlight / iç test kanalında 10 kişiyle gerçek konuşma testi; P0 yayın kapısı raporu.
+**Bitti:** Android + iOS iç dağıtım; replay / çift ücret / kiracılar arası erişim testleri geçer.
 
-## Faz 2 — Kamera, notlar, alanlar (3–4 hafta)
+## Faz 2 — translate-meet oda alfası + dinleme modu (4 hafta)
 
-- [ ] **Camera**: cihaz üstü OCR, çeviri bindirme, galeriden seçme, flaş
-- [ ] **AI Notlar**: oturum transkripti, LLM özeti (konu/karar/yapılacak), iki dilde, PDF/Markdown dışa aktarım
-- [ ] **Alan seçimi**: 12 alan, her biri için prompt + sözlük; kullanıcı sözlüğü
-- [ ] Kullanıcı rehberi / SSS, geri bildirim formu (log ekli)
-- [ ] Uygulama dili: +7 dil
+- [ ] Kurucu oda açar; misafir **QR / bağlantı** ile katılır (tarayıcıdan dinleme dahil, kurulum yok)
+- [ ] LiveKit SFU + çeviri işçisi; her katılımcı kendi hedef dilini seçer; aynı dil kanalı paylaşılır
+- [ ] Tek aktif konuşma sırası, konuşmacı etiketi, kaynak + hedef altyazı yan yana
+- [ ] Uzak oda ve aynı mekân profilleri (yankı: tek mikrofon / kulaklık kuralı)
+- [ ] Kayıt varsayılan kapalı; kayıt durumu görünür; kaynaklı dışa aktarılabilir tutanak
+- [ ] Kısa ömürlü davet, çıkarılan misafir geri giremez, sentetik ses bildirimi
+- [ ] Dinleme modu (tek yönlü: sunum, tur, ders)
+- [ ] Dil başına oda maliyeti ölçülür
 
-**Bitti:** App Store / Play'de yumuşak lansman (TR + 1 pazar).
+**Bitti:** 3 dilli gerçek oda testi; iptal / yeniden bağlanma / kota / yankı senaryoları geçer.
 
-## Faz 3 — Ses klonu ve pratik (3–4 hafta)
+## Faz 3 — Ücretli pilot, kamera, notlar (3–4 hafta)
 
-- [ ] **Ses klonu**: rıza ekranı, rıza cümlesi + konuşmacı doğrulama, kayıt, klon oluşturma, silme
-- [ ] Klon sesle çeviri çıktısı (Yol B), sentetik ses işareti
-- [ ] **Practice**: günün cümlesi, telaffuz puanı, klon sesle örnek, seri, yer imlerinden pratik
-- [ ] Bildirimler (pratik hatırlatıcı)
+- [ ] Abonelik: Ücretsiz / Pro; RevenueCat, Restore, iptal; sunucu hak mutabakatı; webhook HMAC imza + replay koruması
+  - Paywall deneyi: aylık Pro + şeffaf standart/canlı kota; yıllıkta tahsil edilen dönem toplamı aylık eşdeğerden önce görünür
+- [ ] Ekip: web panelde yönetici, koltuk, oda kotası, ortak sözlük; yönetici MFA
+- [ ] **Camera**: fotoğraf çek / galeriden seç → cihaz üstü OCR (Latin önce) → okunabilir bindirme; canlı önizleme sonra
+- [ ] **AI Notlar**: oda/görüşme tutanağından özet (konu, karar, yapılacak), iki dilde, PDF; transkript LLM'e veri olarak gider (AI-01)
+- [ ] Alan seçimi: önce sözlük / MT bağlamı olarak test edilir; kalite farkı ölçülmeden pazarlanmaz
+- [ ] Onboarding + kullanım amacı anketi, SSS, geri bildirim
 
-**Bitti:** Klon özelliği hukuk kontrolünden geçti; premium dönüşüm ölçülüyor.
+**Bitti:** seçilen iş segmentinde tekrar kullanım + marj eşiği; mağazada yumuşak lansman (TR).
 
-## Faz 4 — translate-meet: toplantı odaları ve ekipler (4–6 hafta)
+## Faz 4 — Koşullu eklentiler (go/no-go ile)
 
-- [ ] Oda oluştur / QR ile katıl; her katılımcı kendi dilini seçer
-- [ ] LiveKit SFU + dil başına çeviri işçisi; canlı altyazı + isteğe bağlı ses
-- [ ] Çok dilli toplantı tutanağı (AI Notlar ile birleşik)
-- [ ] Dinleme modu (tek yönlü: ders, tur, konferans)
-- [ ] Ekip planı: koltuk yönetimi, ortak sözlük, arşiv — web panel
-- [ ] Tenant izolasyonu (AZ-01…05) + ekip yöneticisi MFA (AUT-01)
-
-**Bitti:** 5 kişilik, 3 dilli gerçek toplantı testi; ekip planı satın alınabilir.
-
-## Faz 5 — Büyüme ve fark yaratanlar (sürekli)
-
-- [ ] Sesli mesaj çeviri (Share Extension) + klon sesle cevap
-- [ ] Çevrimdışı paket (en sık 5 dil çifti)
-- [ ] Apple Watch, Live Activity / kilit ekranı altyazı
-- [ ] Kulaklık bölme modu
-- [ ] Zoom/Meet/Teams entegrasyonu (bot veya masaüstü yakalama)
-- [ ] B2B dikeyler: sağlık turizmi kliniği, şantiye paketi
-- [ ] Referans / davet programı
+- [ ] **Ses klonu** kapalı beta: rıza akışı, canlı örnek, sentetik ses işareti, silme denetimi (sağlayıcı kalite + hukuk onayı sonrası)
+- [ ] **Practice**: günün cümlesi, telaffuz, seri — günlük kullanım kanıtı varsa
+- [ ] **Çevrimdışı**: TR↔EN metin/OCR paketi (ML Kit / Apple / ticari lisanslı model), uçak modunda tamamlanır
+- [ ] Ek dil çiftleri: TR↔AR saha pilotu, TR↔DE (ihracat), TR↔RU (sağlık turizmi)
+- [ ] Zoom RTMS / Meet / Teams entegrasyonu (her biri ayrı yaşam döngüsü)
+- [ ] Sesli mesaj çeviri (Share Extension), Live Activity, kulaklık bölme, uygulama dili +7
 
 ## Kilometre taşları
 
 | Hafta | Çıktı |
 |---|---|
-| 1 | Faz 0 ölçüm raporu + yığın kararı |
-| 7 | MVP iç test |
-| 11 | Yumuşak lansman (Converse + Translate + Camera + Notlar) |
-| 15 | Ses klonu + Practice |
-| 21 | Toplantı odaları + ekip planı |
+| 2 | Ölçüm raporu + sağlayıcı seçimi + iskelet |
+| 6 | Translate + Converse iç dağıtım |
+| 10 | Oda alfası (QR ile katılım, çok dilli altyazı) |
+| 14 | Ücretli pilot + kamera + notlar, TR yumuşak lansman |
+| 15+ | Klon / Practice / çevrimdışı — kanıta göre |

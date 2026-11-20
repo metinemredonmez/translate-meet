@@ -77,7 +77,7 @@ Kaynak: `…/1-kurulum-promptlari-ve-ozellik-katalogu/YediOda_Ozellik_Katalogu.m
 - Kota/kredi defteri: **rezerve et → geçerli çıktıdan sonra tüket → hata olursa serbest bırak.**
 - Uzun işlerde `Idempotency-Key`.
 - AI çıktısı şemadan geçer; istemler sunucuda sabit; her AI özelliği kapatılabilir; her ücretli dış çağrının tavanı var.
-- **Model adları koda gömülmez, ayardan okunur** (OpenAI `tts-1` 2027-01-06, `gpt-4o`/`whisper-1` 2027-02-26'da kapanıyor).
+- **Model adları koda gömülmez, ayardan okunur** (OpenAI: `tts-1` 2027-01-06, belirli GPT-4o metin snapshot'ları 2027-01-14, `whisper-1` ve `gpt-4o-transcribe` 2027-02-26; tam model kimliğiyle izle).
 - DB değişikliği yalnız göç dosyasıyla; her özelliğe ≥1 olumlu + ≥1 olumsuz test.
 - Paywall: fiyat yalnız mağazadan; görünür kapat; Restore hep görünür; en çok 3 plan, yıllık varsayılan; koşul + gizlilik bağlantıları görünür.
 - Oturum: kısa ömürlü erişim + dönen yenileme jetonu, tekrar kullanımda aile düşer; parola 15–128, Argon2id; kayıt yanıtı e-posta varlığını sızdırmaz.

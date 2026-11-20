@@ -58,7 +58,7 @@
 |---|---|---|
 | Örnek | OpenAI `gpt-realtime-translate`, Gemini Live (live-translate preview), Azure Live Interpreter (preview) | Soniox (STT + çeviri aynı akışta) → ElevenLabs Flash / sistem TTS |
 | Gecikme | ~0,2–0,9 sn (sağlayıcı iddiası) | ~1,2–2,5 sn uçtan uca |
-| Dil | OpenAI: ~70 giriş, **13 çıkış**; Gemini: 70+ | Soniox 60+ dil, 3.600 çift, **iki yönlü mod**; MT katmanı eklenerek 100+ |
+| Dil | OpenAI: ~70 giriş, **13 çıkış — Türkçe çıkış YOK** (yalnız TR→EN gibi yönlerde kullanılabilir); Gemini 3.5 Live Translate: 70+, **Türkçe çıkış var** (preview); Azure: Türkçe kaynak+hedef | Soniox 60+ dil, 3.600 çift, **iki yönlü mod**; MT katmanı eklenerek 100+ |
 | Ses klonu | OpenAI'de yok; Gemini'de tutarsız; Azure "Personal Voice" onay gerektirir | ElevenLabs Instant Voice Clone ile tam kontrol |
 | Maliyet | OpenAI: $0,034/dk (~$2/saat) | Soniox çeviri ~$0,18/saat + TTS (ElevenLabs Flash ~$0,04–0,05 / 1k karakter ≈ $2–3/saat konuşma yoğunluğuna göre; sistem TTS ücretsiz) |
 | Kontrol | Düşük (kara kutu) | Yüksek: sözlük, alan promptu, transkript, özet hepsi elde |
@@ -71,13 +71,15 @@
 Mobil uygulama ──WebSocket/WebRTC──► Realtime Gateway (bizim)
                                        │  • kimlik + kota kontrolü (oturum başında ve her 10 sn)
                                        │  • dil çifti → sağlayıcı seçimi (routing tablosu)
-                                       ├─► Yol A: OpenAI realtime-translate (desteklenen çıkış dillerinde, klon kapalıysa)
+                                       ├─► Yol A: Gemini 3.5 Live Translate (Türkçe çıkış dahil) · OpenAI realtime-translate yalnız hedefi 13 dilden biri olan yönlerde
                                        ├─► Yol B: Soniox iki yönlü STT+MT ─► TTS (ElevenLabs klon / standart ses)
                                        └─► Transkript olayları ─► kuyruk ─► Notlar/özet servisi
 ```
 
 - **Converse "her iki dili algıla"** → Soniox iki yönlü mod birebir bu iş; yön (A→B mi B→A mı) algılanan dile göre belirlenir.
 - **Ses klonu açıksa** daima Yol B (çeviri metni → kullanıcının klon sesi).
+- **Yönlendirme tablosu yön bazlıdır**, çift bazlı değil: `TR→EN` ve `EN→TR` ayrı satır. Uçtan uca modellerde oturum başına tek hedef dil var → iki yönlü görüşme = iki oturum (maliyet ×2).
+- **Toplantı odasında** relay yerine LiveKit SFU + çeviri işçisi; aynı hedef dil için üretilen ses/altyazı tüm dinleyicilere paylaşılır.
 - **Sağlayıcı anahtarları asla uygulamada durmaz** (KEY-02). İki seçenek:
   - *Relay (önerilen, MVP):* ses gateway'den geçer → kota/ölçüm/yönlendirme tam bizde, +50–100 ms.
   - *Ephemeral token (sonra, optimizasyon):* gateway kısa ömürlü, tek oturumluk token basar, istemci doğrudan sağlayıcıya WebRTC ile bağlanır; ölçüm sağlayıcı kullanım verisinden yapılır.
@@ -110,7 +112,7 @@ Mobil uygulama ──WebSocket/WebRTC──► Realtime Gateway (bizim)
 ### 3.5 Birim ekonomisi (kaba)
 
 - Ücretli kullanıcı ~₺250/ay (yıllık plan) ≈ $6–7; mağaza payı (%15–30) sonrası ~$5.
-- Ayda 60 dk canlı çeviri: Yol A ≈ $2; Yol B (Soniox + standart TTS) ≈ $0,2–0,5; klon TTS'li ≈ $2–3.
+- Ayda 60 dk iki yönlü görüşme: Yol A (Gemini, iki hat, ~$0,074/görüşme dk) ≈ $4,4; Yol B (Soniox STT+TTS, ~$0,014/dk/yön) ≈ $1,7; klon TTS'li (ElevenLabs/Cartesia ~$0,03/üretilen dk) ≈ $2–4. Rakamlar Codex raporu §2.2 ve §7'den; pilot faturasıyla doğrulanacak.
 - Sonuç: **Kota şart**, ucuz yol varsayılan, klon ve uzun toplantı premium. Ağır kullanıcı için "fair use" üst sınırı.
 
 ---
@@ -122,7 +124,7 @@ Mobil uygulama ──WebSocket/WebRTC──► Realtime Gateway (bizim)
 3. **Kulaklık bölme:** Bir kulaklık karşı tarafta; uygulama yönleri ayırır.
 4. **Sesli mesaj çeviri:** WhatsApp/Telegram'dan paylaşılan ses notunu çevir, kendi klon sesinle cevap üret (rakip yeni ekledi; biz Share Extension ile baştan).
 5. **Kişisel sözlük + alan paketleri:** Şirket/ürün adları yanlış çevrilmesin.
-6. **Çevrimdışı paket:** Cihaz üstü küçük STT+MT (ör. Whisper-small + NLLB distil) en sık 5 dil çifti için; havaalanı/yurt dışı roaming senaryosu.
+6. **Çevrimdışı paket:** İlk paket TR↔EN metin/OCR, sonra bas-konuş; ML Kit / Apple on-device çeviri veya ticari lisanslı Marian (NLLB **CC-BY-NC, ticari kullanılamaz**); havaalanı/yurt dışı roaming senaryosu.
 7. **Cömert ücretsiz katman:** Günlük birkaç dakika canlı + sınırsız metin → mağaza puanı ve organik büyüme.
 8. **Self-serve ekip planı + web panel:** Koltuk yönetimi, ortak sözlük, toplantı arşivi; sağlık/inşaat B2B.
 9. **Türkiye-öncelikli:** Doğal Türkçe UX, ₺ fiyat, KVKK uyumu ve Türkçe↔Arapça/Almanca/Rusça/Farsça odak.
@@ -134,7 +136,7 @@ Mobil uygulama ──WebSocket/WebRTC──► Realtime Gateway (bizim)
 
 | Risk | Not | Önlem |
 |---|---|---|
-| Ses = biyometrik veri | KVKK'da özel nitelikli kişisel veri; GDPR'da da öyle | Açık rıza ekranı, ayrı aydınlatma metni, amaç sınırlaması, silme hakkı, yurt dışı aktarım bilgisi |
+| Ses verisi | Ham ses kişisel veri; kişiyi benzersiz tanımlamaya/doğrulamaya yönelik teknik işlemde (klon profili, konuşmacı doğrulama) biyometrik → özel nitelikli. Sınıflama amaca göre yapılır | Açık rıza ekranı, ayrı aydınlatma metni, amaç sınırlaması, silme hakkı, yurt dışı aktarım bilgisi |
 | Sentetik ses / deepfake | AB AI Act şeffaflık yükümlülükleri; ABD'de NO FAKES tartışması | Klon sesle üretilen çıktıya işaret/filigran, başkasının sesini klonlamayı engelleyen rıza cümlesi doğrulaması |
 | Karşı tarafın sesi | Converse'de karşıdaki kişi rıza vermedi | Kayıt varsayılan kapalı; notlar açıkken ekranda görünür "kaydediliyor" göstergesi |
 | Mağaza kuralları | Abonelik metinleri, otomatik yenileme, Restore, hesap silme zorunluluğu | Paywall şablonunu Apple 3.1.2 kurallarına göre yaz |
@@ -172,7 +174,7 @@ Yayın kapısı: P0'ların hepsi "Geçti" (kanıtlı) veya "Risk kabul edildi" o
 1. Yığın: tasarım kitine uyum için Expo + FastAPI öneriliyor — onay?
 2. İlk hedef pazar: Türkiye mi, global mi? (fiyat ve dil sırası değişir)
 3. İlk 5 dil çifti hangileri?
-4. Toplantı modu MVP'de mi, Faz 4'te mi?
+4. ~~Toplantı modu MVP'de mi, Faz 4'te mi?~~ → Codex karşılaştırması sonrası Faz 2'ye çekildi (bkz. roadmap).
 5. Bütçe: aylık sağlayıcı gideri tavanı?
 
 ---
