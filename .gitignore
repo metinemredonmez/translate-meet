@@ -1,0 +1,13 @@
+# Referans ekran görüntüleri: üçüncü taraf içerik + kişisel veri (rehber), public repoya girmez
+*.PNG
+*.png
+*.jpg
+*.jpeg
+
+.DS_Store
+.env
+.env.*
+!.env.example
+node_modules/
+.venv/
+__pycache__/
