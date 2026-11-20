@@ -1,7 +1,7 @@
 # translate-meet
 
 Telefonda iki kişilik canlı tercümandan, herkesin kendi dilinde konuştuğu toplantı odalarına kadar uzanan,
-kendi sesinle konuşabildiğin çeviri uygulaması. Şu an **planlama aşamasında**.
+kendi sesinle konuşabildiğin çeviri uygulaması. Şu an **Sprint 1: iskelet + ilk dikey dilim** (gerçek sağlayıcılar Sprint 2'de).
 
 ## Dokümanlar
 
@@ -13,6 +13,32 @@ kendi sesinle konuşabildiğin çeviri uygulaması. Şu an **planlama aşamasın
 | [docs/04-TASARIM-KAYNAKLARI.md](docs/04-TASARIM-KAYNAKLARI.md) | Mevcut tasarım kiti / özellik kataloğundan taşınacak parçalar, yığın, palet |
 | [docs/05-CODEX-KOD-PROMPT.md](docs/05-CODEX-KOD-PROMPT.md) | Sprint 1 kodlama promptu (monorepo iskeleti + ilk dikey dilim) |
 | [docs/codex/CODEX-ANALIZ.md](docs/codex/CODEX-ANALIZ.md) | Codex'in bağımsız analizi ve mevcut belgelerle karşılaştırması |
+
+## Yapı
+
+| Klasör | İçerik |
+|---|---|
+| `apps/api` | FastAPI: Apple/Google giriş, dönen refresh token, kota defteri, metin çeviri, realtime token |
+| `apps/gateway` | WebSocket gateway: `/v1/converse`, kota sayacı, yön bazlı sağlayıcı seçimi (şimdilik mock) |
+| `apps/mobile` | Expo 54 uygulaması: Converse, Translate, Ayarlar (TR/EN, deep-teal tema) |
+| `packages/shared` | API + WebSocket sözleşmesi ([CONTRACT.md](packages/shared/CONTRACT.md)) |
+| `docs/adr` | Mimari karar kayıtları |
+
+## Yerel kurulum
+
+Gerekenler: Python 3.13 + [uv](https://docs.astral.sh/uv/), Node 20 + pnpm 9. Geliştirmede SQLite yeterli; prod PostgreSQL ister.
+
+```bash
+pnpm install
+cd apps/api && uv sync && uv run alembic upgrade head && cd ../..
+cd apps/gateway && uv sync && cd ../..
+pnpm dev:api        # http://localhost:8000
+pnpm dev:gateway    # ws://localhost:8001/v1/converse
+pnpm dev:mobile     # Expo dev client
+```
+
+Testler: `pnpm test:api`, `pnpm test:gateway`, `pnpm --filter @translate-meet/mobile test`.
+Ortam değişkenlerinin yalnız adları `apps/*/.env.example` içinde; değerler repoya girmez.
 
 ## Not
 
