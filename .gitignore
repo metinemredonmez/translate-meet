@@ -11,3 +11,9 @@
 node_modules/
 .venv/
 __pycache__/
+
+# local databases
+*.db
+*.sqlite
+.pytest_cache/
+.ruff_cache/

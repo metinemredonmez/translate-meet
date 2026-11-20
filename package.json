@@ -1,0 +1,15 @@
+{
+  "name": "translate-meet",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:api": "cd apps/api && uv run pytest",
+    "test:gateway": "cd apps/gateway && uv run pytest",
+    "lint:py": "cd apps/api && uv run ruff check . && cd ../gateway && uv run ruff check .",
+    "dev:api": "cd apps/api && uv run uvicorn app.asgi:app --reload --port 8000",
+    "dev:gateway": "cd apps/gateway && uv run uvicorn app.asgi:app --reload --port 8001",
+    "dev:mobile": "pnpm --filter @translate-meet/mobile start"
+  }
+}

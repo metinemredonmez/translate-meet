@@ -1,0 +1,6 @@
+{
+  "name": "@translate-meet/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API + WebSocket contract (CONTRACT.md). Typed clients live in apps/mobile/src/api and src/lib/realtime.ts until codegen lands."
+}
