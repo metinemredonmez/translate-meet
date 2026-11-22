@@ -40,6 +40,7 @@ class Settings(BaseSettings):
         "wss://generativelanguage.googleapis.com/ws/"
         "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
     )
+    elevenlabs_api_key: SecretStr | None = None  # Scribe STT + TTS / voice clone (cascade adapter: next step)
     soniox_api_key: SecretStr | None = None
     soniox_model: str = "stt-rt-v6"
     soniox_stt_url: str = "wss://stt-rt.soniox.com/transcribe-websocket"  # EU: stt-rt.eu.soniox.com
@@ -49,7 +50,9 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-realtime-translate"
 
-    @field_validator("gemini_api_key", "soniox_api_key", "openai_api_key", mode="before")
+    @field_validator(
+        "gemini_api_key", "soniox_api_key", "openai_api_key", "elevenlabs_api_key", mode="before"
+    )
     @classmethod
     def _blank_is_missing(cls, value: object) -> object:
         # An empty `KEY=` line in .env means "not configured", not "configured with an empty key".

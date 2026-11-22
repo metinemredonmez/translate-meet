@@ -217,3 +217,25 @@ def test_endpoint_records_actual_provider_and_releases_quota_when_all_fail(setti
     assert fail.status_code == 502 and fail.json()["error"]["code"] == "provider_error"
     remaining = client.get("/v1/quota", headers=auth(tokens)).json()["text_chars_remaining"]
     assert remaining == 100 - len(body["text"])
+
+
+def test_truncated_output_is_an_error_not_a_translation():
+    def handler(request):
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": "the price is not four dollars,"}, "finish_reason": "length"}
+                ]
+            },
+        )
+
+    with pytest.raises(TranslatorError, match="gemini_truncated"):
+        _compat(handler, name="gemini").translate("fiyat dört değil üç buçuk dolar", "tr", "en")
+
+
+def test_claude_max_tokens_is_an_error():
+    with pytest.raises(TranslatorError, match="claude_truncated"):
+        ClaudeTranslator(_FakeAnthropic(result=_message("partial", "max_tokens")), "m").translate(
+            "x", "tr", "en"
+        )

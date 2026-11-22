@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr | None = None
     gemini_openai_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai"
     gemini_text_model: str = "gemini-3.8-flash"
+    gemini_reasoning_effort: str = "low"
     openai_api_key: SecretStr | None = None
     openai_base_url: str = "https://api.openai.com/v1"
     openai_text_model: str = "gpt-5-mini"

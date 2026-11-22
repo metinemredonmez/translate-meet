@@ -5,7 +5,8 @@
     uv run --project apps/api python scripts/anahtar_ekle.py
 
 - Yazdığın/yapıştırdığın anahtar ekranda görünmez; Enter'a bas.
-- Boş bırakıp Enter'a basarsan o anahtar atlanır (dosyadaki eski değer korunur).
+- Boş bırakıp Enter'a basarsan o anahtar atlanır. Zaten kayıtlı anahtarlar sorulmaz
+  (hepsini yeniden sormak için: pnpm anahtar --hepsi).
 - Anahtarlar yalnız apps/api/.env ve apps/gateway/.env dosyalarına yazılır (git'e girmez, izin 600).
 - Ekrana hiçbir anahtar basılmaz; yalnız ilk 4 karakteri gösterilir.
 """
@@ -27,7 +28,12 @@ TIMEOUT = 15.0
 KEYS = [
     ("Kaptan", "https://kaptan.isnet.net.tr  →  LLM → Anahtarlar", "TM_KAPTAN_API_KEY", [API_ENV]),
     ("Gemini", "https://aistudio.google.com/apikey", "TM_GEMINI_API_KEY", [API_ENV, GATEWAY_ENV]),
-    ("Soniox", "https://console.soniox.com", "TM_SONIOX_API_KEY", [GATEWAY_ENV]),
+    (
+        "ElevenLabs",
+        "https://elevenlabs.io/app/settings/api-keys",
+        "TM_ELEVENLABS_API_KEY",
+        [GATEWAY_ENV, API_ENV],
+    ),
     ("OpenAI", "https://platform.openai.com/api-keys", "TM_OPENAI_API_KEY", [API_ENV]),
     ("Claude", "https://platform.claude.com/settings/keys", "TM_ANTHROPIC_API_KEY", [API_ENV]),
     ("Kimi", "https://platform.kimi.ai/console/api-keys", "TM_KIMI_API_KEY", [API_ENV]),
@@ -35,7 +41,7 @@ KEYS = [
 
 DEFAULTS = {
     API_ENV: {"TM_TRANSLATOR_PROVIDER": "chain"},
-    GATEWAY_ENV: {"TM_SONIOX_TTS_VOICE": "Maya"},
+    GATEWAY_ENV: {},
 }
 
 
@@ -70,9 +76,14 @@ def get_env(path: Path, name: str) -> str:
 
 # ---------------------------------------------------------------- doğrulama (yalnız ücretsiz liste çağrıları)
 
+
+def _bearer(key: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {key}"}
+
+
 def _ids(res: httpx.Response, field: str = "id") -> list[str]:
     data = res.json()
-    items = data.get("data") or data.get("models") or []
+    items = data if isinstance(data, list) else data.get("data") or data.get("models") or []
     return [str(m.get(field) or m.get("name") or "") for m in items]
 
 
@@ -95,20 +106,14 @@ def check(name: str, key: str) -> str:
                 return "❌ anahtar geçersiz (400)"
             ids = [i.removeprefix("models/") for i in _ids(r, "name")] if r.status_code == 200 else []
             return _verdict(r, ids, "gemini-3.5-live-translate-preview", "gemini-3.8-flash")
-        if name == "Soniox":
-            r = httpx.get(
-                "https://api.soniox.com/v1/models", headers={"Authorization": f"Bearer {key}"}, timeout=TIMEOUT
-            )
-            return _verdict(r, _ids(r) if r.status_code == 200 else [], "stt-rt-v6")
+        if name == "ElevenLabs":
+            r = httpx.get("https://api.elevenlabs.io/v1/models", headers={"xi-api-key": key}, timeout=TIMEOUT)
+            return _verdict(r, _ids(r, "model_id") if r.status_code == 200 else [], "eleven_flash_v2_5")
         if name == "OpenAI":
-            r = httpx.get(
-                "https://api.openai.com/v1/models", headers={"Authorization": f"Bearer {key}"}, timeout=TIMEOUT
-            )
+            r = httpx.get("https://api.openai.com/v1/models", headers=_bearer(key), timeout=TIMEOUT)
             return _verdict(r, _ids(r) if r.status_code == 200 else [], "gpt-5-mini")
         if name == "Kimi":
-            r = httpx.get(
-                "https://api.moonshot.ai/v1/models", headers={"Authorization": f"Bearer {key}"}, timeout=TIMEOUT
-            )
+            r = httpx.get("https://api.moonshot.ai/v1/models", headers=_bearer(key), timeout=TIMEOUT)
             return _verdict(r, _ids(r) if r.status_code == 200 else [], "kimi-k3")
         if name == "Claude":
             client = anthropic.Anthropic(api_key=key, timeout=TIMEOUT, max_retries=0)
@@ -151,8 +156,12 @@ def main() -> None:
             if not get_env(path, name):
                 set_env(path, name, value)
 
+    ask_all = "--hepsi" in sys.argv
     for i, (name, where, env_name, files) in enumerate(KEYS, 1):
         current = get_env(files[0], env_name)
+        if current and not ask_all:
+            print(f"[{i}/{len(KEYS)}] {name} — kayıtlı [{mask(current)}], atlandı\n")
+            continue
         print(f"[{i}/{len(KEYS)}] {name}")
         print(f"      Nereden: {where}")
         if current:
@@ -175,7 +184,7 @@ def main() -> None:
     for name, _, env_name, files in KEYS:
         key = get_env(files[0], env_name)
         status = check(name, key) if key else "— girilmedi"
-        print(f"  {name:<7} {status}")
+        print(f"  {name:<10} {status}")
     print("\nBitti. Anahtarlar git'e girmez. Claude'a 'ekledim' yazman yeterli.\n")
 
 

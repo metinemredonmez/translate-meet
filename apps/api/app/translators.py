@@ -89,7 +89,8 @@ class OpenAICompatTranslator:
         body: dict[str, Any] = {
             "model": self._model,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-            self._max_field: min(8192, 256 + len(text) * 3),
+            # Generous cap: reasoning models spend part of it before answering.
+            self._max_field: min(8192, 1024 + len(text) * 4),
             **self._extra,
         }
         try:
@@ -99,9 +100,13 @@ class OpenAICompatTranslator:
         if res.status_code != 200:
             raise TranslatorError(f"{self.name}_http_{res.status_code}")
         try:
-            content = res.json()["choices"][0]["message"]["content"]
+            choice = res.json()["choices"][0]
+            content = choice["message"]["content"]
         except (ValueError, KeyError, IndexError, TypeError):
             raise TranslatorError(f"{self.name}_bad_response") from None
+        # A cut-off translation can silently drop a negation or a number: never return it as success.
+        if choice.get("finish_reason") == "length":
+            raise TranslatorError(f"{self.name}_truncated")
         return _clean(content, self.name)
 
 
@@ -132,6 +137,8 @@ class ClaudeTranslator:
             raise TranslatorError("claude_unreachable") from None
         if response.stop_reason == "refusal":
             raise TranslatorError("claude_refusal")
+        if response.stop_reason == "max_tokens":
+            raise TranslatorError("claude_truncated")
         text_out = "".join(block.text for block in response.content if block.type == "text")
         return _clean(text_out, "claude")
 
@@ -200,7 +207,12 @@ def build_members(settings: Settings) -> list[Translator]:
             extra_body={"chat_template_kwargs": {"enable_thinking": False}},
         ),
         "gemini": lambda key: OpenAICompatTranslator(
-            "gemini", key, settings.gemini_openai_base_url, settings.gemini_text_model
+            "gemini",
+            key,
+            settings.gemini_openai_base_url,
+            settings.gemini_text_model,
+            # Measured 2026-11-22: default thinking ~10 s; "low" ~1.8 s with the same translation.
+            extra_body={"reasoning_effort": settings.gemini_reasoning_effort},
         ),
         "openai": lambda key: OpenAICompatTranslator(
             "openai",
