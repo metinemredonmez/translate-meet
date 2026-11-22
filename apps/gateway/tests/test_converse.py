@@ -202,3 +202,45 @@ def test_registry_only_has_configured_providers():
 def test_prod_refuses_insecure_defaults():
     with pytest.raises(RuntimeError):
         Settings(env="prod").assert_safe()
+
+
+class _BrokenProvider:
+    name = "broken"
+
+    async def start(self, source_lang, target_lang, mode):
+        from app.adapters.common import ProviderError
+
+        raise ProviderError("broken_connect_failed")
+
+    async def close(self):
+        return None
+
+
+def test_falls_back_to_next_provider_when_primary_fails(settings, rt_token):
+    from app.providers import MockTranslator
+
+    settings.routes = {"*": ["broken", "mock"]}
+    registry = {
+        "broken": ProviderSpec("broken", _BrokenProvider, None),
+        "mock": ProviderSpec("mock", MockTranslator, None),
+    }
+    client = TestClient(create_app(settings, quota_client=FakeQuota(), registry=registry))
+    with client.websocket_connect(URL) as ws:
+        assert _open(ws, rt_token())["provider"] == "mock"
+        ws.send_json({"type": "stop"})
+        _expect_close(ws, 1000)
+
+
+def test_all_providers_down_fails_closed_and_releases_nothing(settings, rt_token):
+    settings.routes = {"*": ["broken"]}
+    quota = FakeQuota()
+    client = TestClient(
+        create_app(
+            settings, quota_client=quota, registry={"broken": ProviderSpec("broken", _BrokenProvider, None)}
+        )
+    )
+    with client.websocket_connect(URL) as ws:
+        ws.send_json({"type": "auth", "token": rt_token()})
+        ws.send_json({"type": "start", "source_lang": "tr", "target_lang": "en"})
+        _expect_close(ws, 1011)
+    assert all(r["state"] != "reserved" for r in quota.reservations.values())

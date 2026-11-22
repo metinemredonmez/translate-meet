@@ -38,8 +38,8 @@ Sunucu → istemci:
 - `{"type":"detected_language","lang":str}`
 - `{"type":"partial_caption","text":str,"lang":str}`
 - `{"type":"final_caption","source_text":str,"translated_text":str,"source_lang":str,"target_lang":str}`
-- `{"type":"audio_chunk","data":"<base64>","lang":str}`
+- `{"type":"audio_chunk","data":"<base64 PCM16 mono>","lang":str,"sample_rate":24000}` (`sample_rate` Sprint 2'de eklendi; eski istemciler yok sayar)
 - `{"type":"quota_update","realtime_seconds_remaining":int}`
-- `{"type":"error","code":str,"message":str}`
+- `{"type":"error","code":str,"message":str}` — oturumu kapatmayan uyarılar: `text_not_supported` (gerçek sağlayıcılar yalnız ses kabul eder), `soniox_tts_*` (altyazı sürer, ses üretilemedi). Kapanışla gelen: `provider_error`, `provider_unavailable`, `quota_exceeded`, …
 
 Kapanış kodları: 4401 kimlik, 4402 kota bitti, 4403 origin reddi, 4408 süre aşımı, 4422 bozuk mesaj, 4429 hız sınırı, 1011 sunucu hatası.

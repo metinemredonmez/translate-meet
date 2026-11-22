@@ -8,11 +8,12 @@ import uuid
 import jwt
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
+from app.adapters.common import ProviderError
 from app.config import Settings, get_settings
 from app.protocol import AudioMsg, AuthMsg, ProtocolError, StartMsg, StopMsg, TextMsg, parse_client_message
 from app.providers import ProviderSpec, RealtimeTranslator, build_registry
 from app.quota_client import HttpQuotaClient, QuotaClient, QuotaExhausted, QuotaMeter, QuotaUnavailable
-from app.routing import NoProvider, choose_provider
+from app.routing import candidate_providers
 
 REALTIME_AUDIENCE = "translate-meet-gateway"
 
@@ -123,12 +124,11 @@ async def _converse(
         # The token binds the language pair; the client cannot switch to another (cost) route.
         if {start.source_lang, start.target_lang} != {claims["src"], claims["tgt"]}:
             raise _Close(CLOSE_AUTH, "language_mismatch")
-        try:
-            spec = choose_provider(
-                settings.routes, registry, start.source_lang, start.target_lang, start.mode
-            )
-        except NoProvider as exc:
-            raise _Close(CLOSE_BAD_MESSAGE, "unsupported_language_pair") from exc
+        specs = candidate_providers(
+            settings.routes, registry, start.source_lang, start.target_lang, start.mode
+        )
+        if not specs:
+            raise _Close(CLOSE_BAD_MESSAGE, "unsupported_language_pair")
 
         meter = QuotaMeter(quota_client, user_id, session_id, settings.quota_tick_seconds)
         try:
@@ -138,8 +138,23 @@ async def _converse(
         except QuotaUnavailable as exc:  # ARC-05 / EXC-01: fail closed
             raise _Close(CLOSE_SERVER, "quota_unavailable") from exc
 
-        translator = spec.factory()
-        await translator.start(start.source_lang, start.target_lang, start.mode)
+        # ARC-05: if the primary provider cannot start, fall back to the next configured one.
+        spec = None
+        for candidate in specs:
+            attempt = candidate.factory()
+            try:
+                await attempt.start(start.source_lang, start.target_lang, start.mode)
+            except ProviderError as exc:
+                _event(
+                    "provider_start_failed", session_id=session_id, provider=candidate.name, reason=str(exc)
+                )
+                with contextlib.suppress(Exception):
+                    await attempt.close()
+                continue
+            translator, spec = attempt, candidate
+            break
+        if translator is None or spec is None:
+            raise _Close(CLOSE_SERVER, "provider_unavailable")
         await ws.send_json({"type": "ready", "session_id": session_id, "provider": spec.name})
         await ws.send_json({"type": "quota_update", "realtime_seconds_remaining": first.remaining_after})
         _event("session_start", session_id=session_id, user_id=user_id, provider=spec.name)
@@ -152,6 +167,11 @@ async def _converse(
         _event("session_close", session_id=session_id, code=close.code, reason=close.error)
         with contextlib.suppress(Exception):
             await ws.close(code=close.code)
+    except ProviderError as exc:
+        _event("session_close", session_id=session_id, code=CLOSE_SERVER, reason=str(exc))
+        with contextlib.suppress(Exception):
+            await ws.send_json({"type": "error", "code": "provider_error", "message": str(exc)})
+            await ws.close(code=CLOSE_SERVER)
     except WebSocketDisconnect:
         _event("session_disconnect", session_id=session_id)
     except Exception as exc:

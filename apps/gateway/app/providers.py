@@ -6,6 +6,8 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from typing import Protocol
 
+from app.adapters.gemini import GeminiLiveTranslate
+from app.adapters.soniox import SonioxTTS, SonioxTwoWay
 from app.config import Settings
 
 # OpenAI gpt-realtime-translate documented target languages (no Turkish).
@@ -83,7 +85,7 @@ class MockTranslator:
 
 
 class _NotYetImplemented:
-    """Base for real adapters: interface fixed now, network code lands in sprint 2."""
+    """Base for adapters whose network code is not written yet (OpenAI: sprint 3, TR->EN only)."""
 
     name = "unset"
 
@@ -91,7 +93,7 @@ class _NotYetImplemented:
         self._api_key, self._model = api_key, model
 
     async def start(self, source_lang: str, target_lang: str, mode: str) -> None:
-        raise NotImplementedError(f"{self.name} adapter arrives in sprint 2")
+        raise NotImplementedError(f"{self.name} adapter not implemented yet")
 
     async def send_audio(self, pcm: bytes) -> None:
         raise NotImplementedError
@@ -105,14 +107,6 @@ class _NotYetImplemented:
 
     async def close(self) -> None:
         return None
-
-
-class GeminiLiveTranslate(_NotYetImplemented):
-    name = "gemini_live"
-
-
-class SonioxTwoWay(_NotYetImplemented):
-    name = "soniox_two_way"
 
 
 class OpenAIRealtimeTranslate(_NotYetImplemented):
@@ -132,11 +126,28 @@ def build_registry(settings: Settings) -> dict[str, ProviderSpec]:
     if settings.enable_mock_provider:
         registry["mock"] = ProviderSpec("mock", MockTranslator, None)
     if settings.gemini_api_key:
-        key, model = settings.gemini_api_key.get_secret_value(), settings.gemini_model
-        registry["gemini_live"] = ProviderSpec("gemini_live", lambda: GeminiLiveTranslate(key, model), None)
+        g_key, g_model, g_url = (
+            settings.gemini_api_key.get_secret_value(),
+            settings.gemini_model,
+            settings.gemini_ws_url,
+        )
+        registry["gemini_live"] = ProviderSpec(
+            "gemini_live", lambda: GeminiLiveTranslate(g_key, g_model, url=g_url), None
+        )
     if settings.soniox_api_key and settings.soniox_model:
-        key, model = settings.soniox_api_key.get_secret_value(), settings.soniox_model
-        registry["soniox_two_way"] = ProviderSpec("soniox_two_way", lambda: SonioxTwoWay(key, model), None)
+        s_key = settings.soniox_api_key.get_secret_value()
+
+        def soniox() -> SonioxTwoWay:
+            tts = (
+                SonioxTTS(
+                    s_key, settings.soniox_tts_model, settings.soniox_tts_voice, url=settings.soniox_tts_url
+                )
+                if settings.soniox_tts_voice
+                else None
+            )
+            return SonioxTwoWay(s_key, settings.soniox_model, url=settings.soniox_stt_url, tts=tts)
+
+        registry["soniox_two_way"] = ProviderSpec("soniox_two_way", soniox, None)
     if settings.openai_api_key:
         key, model = settings.openai_api_key.get_secret_value(), settings.openai_model
         registry["openai_realtime"] = ProviderSpec(

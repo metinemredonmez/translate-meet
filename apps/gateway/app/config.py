@@ -36,8 +36,16 @@ class Settings(BaseSettings):
 
     gemini_api_key: SecretStr | None = None
     gemini_model: str = "gemini-3.5-live-translate-preview"
+    gemini_ws_url: str = (
+        "wss://generativelanguage.googleapis.com/ws/"
+        "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
+    )
     soniox_api_key: SecretStr | None = None
-    soniox_model: str = ""
+    soniox_model: str = "stt-rt-v6"
+    soniox_stt_url: str = "wss://stt-rt.soniox.com/transcribe-websocket"  # EU: stt-rt.eu.soniox.com
+    soniox_tts_url: str = "wss://tts-rt.soniox.com/tts-websocket"  # EU: tts-rt.eu.soniox.com
+    soniox_tts_model: str = "tts-rt-v2"
+    soniox_tts_voice: str = ""  # empty = captions only, no synthesized speech
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-realtime-translate"
 
