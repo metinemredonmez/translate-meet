@@ -1,4 +1,5 @@
 import datetime as dt
+import secrets
 
 import pyotp
 import pytest
@@ -15,7 +16,8 @@ from app.admin_security import (
 )
 from app.models import Admin, AdminSession, AuditLog
 
-PASSWORD = "dogru-at-pil-zimba-2026"
+# Generated per run: no secret-looking literals in the repo (gitleaks).
+PASSWORD = "tm-" + secrets.token_urlsafe(18)
 ORIGIN = "http://localhost:3001"
 
 

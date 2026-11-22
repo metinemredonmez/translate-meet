@@ -1,0 +1,4 @@
+# Test-only placeholder values (not secrets) committed in 3bfb1a3; replaced by runtime-generated values
+# in the next commit. Fingerprints let gitleaks skip exactly these two historical lines.
+3bfb1a38b5242d6cd7549b826476a7b26ef42222:apps/api/tests/test_translate.py:generic-api-key:204
+3bfb1a38b5242d6cd7549b826476a7b26ef42222:apps/api/tests/test_admin.py:generic-api-key:18

@@ -1,5 +1,6 @@
 import jwt
 from conftest import auth, idem
+from cryptography.fernet import Fernet
 
 from app.security import REALTIME_AUDIENCE
 
@@ -201,7 +202,7 @@ def test_prod_settings_safe_example_passes():
         internal_service_token="c" * 40,
         google_client_ids=["x"],
         translator_provider="chain",
-        data_encryption_key="c2VjdXJlLXByb2Qta2V5LWZvci10ZXN0cy0xMjM0NTY=",
+        data_encryption_key=Fernet.generate_key().decode(),
         admin_allowed_origins=["https://panel.translatemeet.app"],
     ).assert_safe()
     assert jwt  # keep import used
