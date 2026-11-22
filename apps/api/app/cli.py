@@ -115,13 +115,17 @@ def main() -> int:
     parser = argparse.ArgumentParser(prog="app.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
     c = sub.add_parser("create-admin")
-    c.add_argument("--email", required=True)
+    c.add_argument("--email", help="sorulmazsa etkileşimli istenir")
     c.add_argument("--role", choices=["admin", "viewer"], default="admin")
     sub.add_parser("reset-mfa").add_argument("--email", required=True)
     sub.add_parser("disable-admin").add_argument("--email", required=True)
     args = parser.parse_args()
     if args.cmd == "create-admin":
-        return create_admin(args.email, args.role)
+        email = args.email or input("Admin e-posta: ").strip()
+        if "@" not in email:
+            print("Geçerli bir e-posta gir.", file=sys.stderr)
+            return 1
+        return create_admin(email, args.role)
     if args.cmd == "reset-mfa":
         return reset_mfa(args.email)
     return disable_admin(args.email)
