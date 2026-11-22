@@ -13,6 +13,7 @@ kendi sesinle konuşabildiğin çeviri uygulaması. Şu an **Sprint 2**: Gemini 
 | [docs/04-TASARIM-KAYNAKLARI.md](docs/04-TASARIM-KAYNAKLARI.md) | Mevcut tasarım kiti / özellik kataloğundan taşınacak parçalar, yığın, palet |
 | [docs/05-CODEX-KOD-PROMPT.md](docs/05-CODEX-KOD-PROMPT.md) | Sprint 1 kodlama promptu (monorepo iskeleti + ilk dikey dilim) |
 | [docs/06-OLCUM.md](docs/06-OLCUM.md) | Sağlayıcı gecikme/maliyet ölçümü nasıl çalıştırılır |
+| [docs/07-CODEX-DENETIM-PROMPT.md](docs/07-CODEX-DENETIM-PROMPT.md) | Backend güvenlik + kod denetimi için Codex promptu |
 | [docs/codex/CODEX-ANALIZ.md](docs/codex/CODEX-ANALIZ.md) | Codex'in bağımsız analizi ve mevcut belgelerle karşılaştırması |
 
 ## Yapı
