@@ -6,7 +6,7 @@ from app.config import Settings, get_settings
 from app.db import make_engine, make_sessionmaker
 from app.errors import install_error_handlers
 from app.oidc import OIDCVerifier
-from app.routes import auth, realtime, translate
+from app.routes import admin, auth, realtime, translate
 from app.translators import Translator, build_translator
 
 
@@ -44,4 +44,5 @@ def create_app(
     app.include_router(auth.router)
     app.include_router(translate.router)
     app.include_router(realtime.router)
+    app.include_router(admin.router)
     return app

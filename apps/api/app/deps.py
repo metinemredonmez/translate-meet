@@ -37,4 +37,6 @@ def current_user(
     user = db.get(User, claims["sub"])
     if user is None:
         raise ApiError(401, "unauthorized", "invalid token")
+    if user.disabled_at is not None:
+        raise ApiError(403, "account_disabled", "account disabled")
     return user

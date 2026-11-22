@@ -2,5 +2,17 @@
   "name": "@translate-meet/shared",
   "version": "0.1.0",
   "private": true,
-  "description": "API + WebSocket contract (CONTRACT.md). Typed clients live in apps/mobile/src/api and src/lib/realtime.ts until codegen lands."
+  "description": "API + WebSocket contract. src/api.d.ts is GENERATED from openapi.json (apps/api/scripts/export_openapi.py) — do not edit by hand.",
+  "types": "src/api.d.ts",
+  "exports": {
+    "./api": { "types": "./src/api.d.ts" },
+    "./tokens.css": "./src/tokens.css"
+  },
+  "scripts": {
+    "gen": "openapi-typescript openapi.json -o src/api.d.ts",
+    "check": "openapi-typescript openapi.json -o /tmp/tm-api-check.d.ts && diff -q src/api.d.ts /tmp/tm-api-check.d.ts"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.4.0"
+  }
 }

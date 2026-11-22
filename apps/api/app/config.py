@@ -26,6 +26,16 @@ class Settings(BaseSettings):
     apple_client_ids: list[str] = []
     google_client_ids: list[str] = []
 
+    # Admin panel (AUT-01, SES-01, WEB-03)
+    data_encryption_key: SecretStr = SecretStr(
+        "ZGV2LW9ubHktZGF0YS1rZXktbm90LWZvci1wcm9kISE="
+    )  # Fernet; dev only
+    admin_allowed_origins: list[str] = ["http://localhost:3001"]
+    admin_session_hours: int = 8
+    admin_idle_minutes: int = 30
+    admin_max_failed_logins: int = 5
+    admin_lock_minutes: int = 15
+
     gateway_public_url: str = "ws://localhost:8001/v1/converse"
 
     daily_text_chars: int = 20_000
@@ -51,6 +61,10 @@ class Settings(BaseSettings):
     kimi_api_key: SecretStr | None = None
     kimi_base_url: str = "https://api.moonshot.ai/v1"
     kimi_model: str = "kimi-k3"
+
+    @property
+    def cookie_secure(self) -> bool:
+        return self.env == "prod"
 
     @field_validator(
         "kaptan_api_key",
@@ -82,6 +96,10 @@ class Settings(BaseSettings):
             problems.append("at least one OIDC client id is required")
         if self.translator_provider == "mock":
             problems.append("translator_provider must not be mock in prod")
+        if self.data_encryption_key.get_secret_value() == "ZGV2LW9ubHktZGF0YS1rZXktbm90LWZvci1wcm9kISE=":
+            problems.append("data_encryption_key is the dev default")
+        if any(not o.startswith("https://") for o in self.admin_allowed_origins):
+            problems.append("admin_allowed_origins must be https in prod")
         if problems:
             raise RuntimeError("Unsafe production configuration: " + "; ".join(problems))
 

@@ -1,0 +1,32 @@
+/* GENERATED from palette `deep-teal` (uygulama-tasarim-kaynaklari/2-renk-paletleri). Shared by apps/panel and apps/web. */
+:root {
+  --tm-background: #DCE9E8;
+  --tm-surface: #F1F6F6;
+  --tm-surface-raised: #FFFFFF;
+  --tm-border: #91B3B9;
+  --tm-text-muted: #245568;
+  --tm-text: #071C27;
+  --tm-primary: #245568;
+  --tm-on-primary: #DCE9E8;
+  --tm-accent: #477C8B;
+  --tm-danger: #B42318;
+  --tm-success: #067647;
+  --tm-warning: #B54708;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tm-background: #071C27;
+    --tm-surface: #123747;
+    --tm-surface-raised: #1B4658;
+    --tm-border: #245568;
+    --tm-text-muted: #91B3B9;
+    --tm-text: #DCE9E8;
+    --tm-primary: #91B3B9;
+    --tm-on-primary: #071C27;
+    --tm-accent: #477C8B;
+    --tm-danger: #F97066;
+    --tm-success: #47CD89;
+    --tm-warning: #FDB022;
+  }
+}

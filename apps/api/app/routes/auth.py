@@ -94,6 +94,9 @@ def oauth_login(
                 )
             )
             assert user is not None
+    if user.disabled_at is not None:
+        security_event("login_failure", provider=body.provider, reason="account_disabled")
+        raise ApiError(403, "account_disabled", "account disabled")
     pair = _issue_pair(db, settings, user.id)
     db.commit()
     security_event("login_success", user_id=user.id, provider=identity.provider)
@@ -115,6 +118,9 @@ def refresh(
         raise ApiError(401, "unauthorized", "invalid refresh token")
     if as_utc(token.expires_at) <= utcnow():
         raise ApiError(401, "unauthorized", "refresh token expired")
+    owner = db.get(User, token.user_id)
+    if owner is None or owner.disabled_at is not None:
+        raise ApiError(403, "account_disabled", "account disabled")
     token.used_at = utcnow()
     pair = _issue_pair(db, settings, token.user_id, family_id=token.family_id)
     db.commit()
