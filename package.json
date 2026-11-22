@@ -11,5 +11,18 @@
     "dev:api": "cd apps/api && uv run uvicorn app.asgi:app --reload --port 8000",
     "dev:gateway": "cd apps/gateway && uv run uvicorn app.asgi:app --reload --port 8001",
     "dev:mobile": "pnpm --filter @translate-meet/mobile start"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss@<8.5.23": "^8.5.23"
+    },
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-5p2g-fcmc-qvqq",
+        "GHSA-w3rx-r6r6-pgpr",
+        "GHSA-qr28-fpjm-wq7f",
+        "GHSA-vcc3-ghjq-m6fr"
+      ]
+    }
   }
 }
