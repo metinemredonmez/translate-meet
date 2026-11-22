@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from typing import Protocol
 
+from app.adapters.elevenlabs import ApiTextTranslator, ElevenLabsCascade
 from app.adapters.gemini import GeminiLiveTranslate
 from app.adapters.soniox import SonioxTTS, SonioxTwoWay
 from app.config import Settings
@@ -134,6 +135,22 @@ def build_registry(settings: Settings) -> dict[str, ProviderSpec]:
         registry["gemini_live"] = ProviderSpec(
             "gemini_live", lambda: GeminiLiveTranslate(g_key, g_model, url=g_url), None
         )
+    if settings.elevenlabs_api_key:
+        e_key = settings.elevenlabs_api_key.get_secret_value()
+        e_translate = ApiTextTranslator(
+            settings.api_internal_url, settings.internal_service_token.get_secret_value()
+        )
+
+        def elevenlabs() -> ElevenLabsCascade:
+            return ElevenLabsCascade(
+                e_key,
+                e_translate,
+                settings.elevenlabs_voice_id,
+                stt_model=settings.elevenlabs_stt_model,
+                tts_model=settings.elevenlabs_tts_model,
+            )
+
+        registry["elevenlabs_cascade"] = ProviderSpec("elevenlabs_cascade", elevenlabs, None)
     if settings.soniox_api_key and settings.soniox_model:
         s_key = settings.soniox_api_key.get_secret_value()
 

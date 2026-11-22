@@ -79,3 +79,13 @@ Kalite:
 | Kimi (kimi-k3) | — | **hesap yetersiz bakiye nedeniyle askıda (429)** | — |
 
 Karar: zincir sırası Kaptan → Gemini → OpenAI → Claude → Kimi korunuyor; Claude, OpenAI'den hızlı olduğu için yedekte öne alınabilir (`TM_TRANSLATOR_CHAIN`).
+
+### Canlı konuşma — ElevenLabs akışı (Scribe → Kaptan zinciri → Flash v2.5 TTS)
+
+Tek örnekle doğrulama (2026-11-22, gerçek API):
+- Scribe realtime Türkçe'yi eksiksiz yazdı ("dört dolar değil, üç buçuk dolar"), `language_code: tr` döndü.
+- Bölüm ancak istemci `commit: true` gönderince kesinleşiyor → gateway ~0,7 sn sessizlikte commit eder (enerji VAD).
+- TTS (eleven_flash_v2_5, pcm_24000): ilk ses **0,8 sn**.
+- Beklenen zincir: konuşma sonu → 0,7 sn sessizlik + commit → Kaptan çeviri ~0,3 sn → altyazı (~1,1 sn); ilk çevrilmiş ses ~2 sn. **Ölçülecek.**
+- Tam ölçüm `quota_exceeded` ile durdu: ElevenLabs anahtarının kredi sınırı / hesap kredisi bitti. Kredi açılınca:
+  `TM_API_INTERNAL_URL=http://127.0.0.1:8000 uv run python -m bench.run --provider elevenlabs_cascade --src tr --tgt en bench/samples/*.wav`

@@ -203,3 +203,13 @@ def test_prod_settings_safe_example_passes():
         translator_provider="chain",
     ).assert_safe()
     assert jwt  # keep import used
+
+
+def test_internal_translate_for_gateway(client, settings):
+    body = {"text": "Merhaba", "source_lang": "tr", "target_lang": "en"}
+    assert client.post("/internal/translate", json=body).status_code == 401
+    res = client.post("/internal/translate", json=body, headers=_internal(settings))
+    assert res.status_code == 200
+    assert res.json() == {"translated_text": "[tr->en] Merhaba", "provider": "mock"}
+    bad = client.post("/internal/translate", json={**body, "text": ""}, headers=_internal(settings))
+    assert bad.status_code == 422

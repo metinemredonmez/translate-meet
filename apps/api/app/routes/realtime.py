@@ -12,6 +12,7 @@ from app.errors import ApiError
 from app.models import User
 from app.routes.translate import LANG_PATTERN
 from app.security import issue_realtime_token, security_event
+from app.translators import TranslatorError, run_translation
 
 router = APIRouter()
 
@@ -110,3 +111,27 @@ def internal_release(body: SettleIn, db: Session = Depends(get_db)) -> None:
     except quota.QuotaEntryNotFound as exc:
         raise ApiError(404, "not_found", "not found") from exc
     db.commit()
+
+
+class InternalTranslateIn(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+    source_lang: str = Field(pattern=LANG_PATTERN)
+    target_lang: str = Field(pattern=LANG_PATTERN)
+
+
+class InternalTranslateOut(BaseModel):
+    translated_text: str
+    provider: str
+
+
+@router.post(
+    "/internal/translate", response_model=InternalTranslateOut, dependencies=[Depends(require_internal)]
+)
+def internal_translate(body: InternalTranslateIn, request: Request) -> InternalTranslateOut:
+    """Gateway -> API: translate a committed live-caption segment with the same provider chain.
+    No text quota here: the gateway already meters the session in realtime seconds."""
+    try:
+        result = run_translation(request.app.state.translator, body.text, body.source_lang, body.target_lang)
+    except TranslatorError as exc:
+        raise ApiError(502, "provider_error", "translation provider failed") from exc
+    return InternalTranslateOut(translated_text=result.text, provider=result.provider)

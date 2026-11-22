@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 
+import httpx
 import pytest
 from websockets.asyncio.server import serve
 
@@ -296,3 +297,141 @@ def test_gemini_continuous_stream_flushes_on_pause_and_drops_silence():
     assert not any(e["type"] == "audio_chunk" for e in events)
     assert events[-1]["translated_text"] == "Hello, the meeting"
     assert events[-1]["source_text"] == "Merhaba toplantı"
+
+
+# ---------------------------------------------------------------- ElevenLabs cascade
+
+from app.adapters.elevenlabs import ElevenLabsCascade, normalize_lang  # noqa: E402
+
+LOUD = b"\x00\x20" * 1600  # 100 ms, rms ~8192
+QUIET = b"\x00\x00" * 1600  # 100 ms silence
+
+
+def _scribe_handler(seen):
+    async def handler(ws):
+        seen["auth"] = ws.request.headers.get("xi-api-key")
+        seen["path"] = ws.request.path
+        await ws.send(json.dumps({"message_type": "session_started", "session_id": "s1", "config": {}}))
+        seen["commits"] = 0
+        async for raw in ws:
+            msg = json.loads(raw)
+            assert msg["message_type"] == "input_audio_chunk" and msg["sample_rate"] == 16000
+            if msg["commit"]:
+                seen["commits"] += 1
+                text = "Fiyat dört değil, üç buçuk dolar."
+                await ws.send(
+                    json.dumps(
+                        {
+                            "message_type": "committed_transcript_with_timestamps",
+                            "text": text,
+                            "language_code": "tur",
+                        }
+                    )
+                )
+                await ws.send(json.dumps({"message_type": "committed_transcript", "text": text}))
+            elif "partial_sent" not in seen:
+                seen["partial_sent"] = True
+                await ws.send(
+                    json.dumps(
+                        {"message_type": "partial_transcript", "text": "Fiyat dört", "language_code": "tr"}
+                    )
+                )
+
+    return handler
+
+
+def test_normalize_lang():
+    assert (normalize_lang("tur"), normalize_lang("en-US"), normalize_lang(None)) == ("tr", "en", "")
+
+
+def test_elevenlabs_cascade_commit_translate_speak():
+    seen, calls = {}, []
+
+    async def translate(text, src, tgt):
+        calls.append((text, src, tgt))
+        return "The price is not four but three and a half dollars."
+
+    def tts(request: httpx.Request) -> httpx.Response:
+        seen["tts_url"] = str(request.url)
+        seen["tts_key"] = request.headers["xi-api-key"]
+        seen["tts_body"] = json.loads(request.content)
+        return httpx.Response(200, content=b"\x01\x02" * 1000 + b"\x03")  # odd byte must be carried
+
+    async def main():
+        async with serve(_scribe_handler(seen), "127.0.0.1", 0) as server:
+            adapter = ElevenLabsCascade(
+                FAKE_KEY,
+                translate,
+                "voice123",
+                stt_url=f"ws://127.0.0.1:{_port(server)}/rt",
+                tts_base_url="https://tts.test",
+                tts_transport=httpx.MockTransport(tts),
+            )
+            await adapter.start("tr", "en", "two_way")
+            for chunk in [LOUD] * 3 + [QUIET] * 8:  # speech, then 800 ms silence -> one commit
+                await adapter.send_audio(chunk)
+            events = await _collect(adapter, lambda e: e["type"] == "audio_chunk")
+            await adapter.close()
+            return events
+
+    events = asyncio.run(main())
+    assert seen["auth"] == FAKE_KEY and "model_id=scribe_v2_realtime" in seen["path"]
+    assert "include_language_detection=true" in seen["path"] and seen["commits"] == 1
+    assert {"type": "detected_language", "lang": "tr"} in events
+    assert calls == [("Fiyat dört değil, üç buçuk dolar.", "tr", "en")]
+    final = next(e for e in events if e["type"] == "final_caption")
+    assert (final["source_lang"], final["target_lang"]) == ("tr", "en")
+    assert seen["tts_url"] == "https://tts.test/v1/text-to-speech/voice123/stream?output_format=pcm_24000"
+    assert seen["tts_key"] == FAKE_KEY
+    assert seen["tts_body"] == {
+        "text": final["translated_text"],
+        "model_id": "eleven_flash_v2_5",
+        "language_code": "en",
+    }
+    audio = next(e for e in events if e["type"] == "audio_chunk")
+    assert len(base64.b64decode(audio["data"])) % 2 == 0 and audio["sample_rate"] == 24_000
+
+
+def test_elevenlabs_direction_and_failures():
+    adapter = ElevenLabsCascade(FAKE_KEY, None, "v")
+    adapter._pair, adapter._mode = ("tr", "en"), "two_way"
+    assert adapter._direction("en") == ("en", "tr") and adapter._direction("tr") == ("tr", "en")
+    adapter._mode = "one_way"
+    assert adapter._direction("en") is None  # already in target language: nothing to translate
+
+    async def failing(text, src, tgt):
+        raise ProviderError("translate_http_502")
+
+    seen = {}
+
+    async def main():
+        async with serve(_scribe_handler(seen), "127.0.0.1", 0) as server:
+            a = ElevenLabsCascade(
+                FAKE_KEY,
+                failing,
+                "v",
+                stt_url=f"ws://127.0.0.1:{_port(server)}/rt",
+                tts_transport=httpx.MockTransport(lambda r: httpx.Response(500)),
+            )
+            await a.start("tr", "en", "two_way")
+            for chunk in [LOUD] * 2 + [QUIET] * 8:
+                await a.send_audio(chunk)
+            events = await _collect(a, lambda e: e["type"] == "error")
+            await a.close()
+            return events
+
+    err = asyncio.run(main())[-1]
+    assert err["code"] == "translate_http_502"  # session keeps running; error is reported, not fatal
+
+
+def test_elevenlabs_rejected_session():
+    async def handler(ws):
+        await ws.send(json.dumps({"message_type": "auth_error", "error": "invalid key"}))
+
+    async def main():
+        async with serve(handler, "127.0.0.1", 0) as server:
+            a = ElevenLabsCascade(FAKE_KEY, None, "v", stt_url=f"ws://127.0.0.1:{_port(server)}/rt")
+            await a.start("tr", "en", "two_way")
+
+    with pytest.raises(ProviderError, match="elevenlabs_session_rejected"):
+        asyncio.run(main())

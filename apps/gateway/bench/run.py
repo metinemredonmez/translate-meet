@@ -30,6 +30,7 @@ CHUNK_MS = 100
 PRICE_PER_MIN = {
     "gemini_live": {"input_per_leg": 0.0053, "output": 0.0315},
     "soniox_two_way": {"input_per_leg": 0.002, "output": 0.0117},
+    "elevenlabs_cascade": {"input_per_leg": 0.0, "output": 0.0},  # plan kredisiyle; $/dk doğrulanmadı
     "mock": {"input_per_leg": 0.0, "output": 0.0},
 }
 

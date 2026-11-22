@@ -9,8 +9,8 @@ _DEV_PREFIX = "dev-only"
 DEFAULT_ROUTES: dict[str, list[str]] = {
     # Direction-specific rows win over "*". OpenAI realtime-translate is only valid where the
     # TARGET is one of its 13 output languages (no Turkish output) - enforced in routing.py.
-    "*": ["gemini_live", "soniox_two_way", "mock"],
-    "tr->en": ["gemini_live", "soniox_two_way", "openai_realtime", "mock"],
+    "*": ["gemini_live", "elevenlabs_cascade", "soniox_two_way", "mock"],
+    "tr->en": ["gemini_live", "elevenlabs_cascade", "soniox_two_way", "openai_realtime", "mock"],
 }
 
 
@@ -40,7 +40,10 @@ class Settings(BaseSettings):
         "wss://generativelanguage.googleapis.com/ws/"
         "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
     )
-    elevenlabs_api_key: SecretStr | None = None  # Scribe STT + TTS / voice clone (cascade adapter: next step)
+    elevenlabs_api_key: SecretStr | None = None  # Scribe STT + TTS (later: voice clone)
+    elevenlabs_voice_id: str = "JBFqnCBsd6RMkjVDRZzb"  # premade multilingual voice; per-user voice later
+    elevenlabs_stt_model: str = "scribe_v2_realtime"
+    elevenlabs_tts_model: str = "eleven_flash_v2_5"
     soniox_api_key: SecretStr | None = None
     soniox_model: str = "stt-rt-v6"
     soniox_stt_url: str = "wss://stt-rt.soniox.com/transcribe-websocket"  # EU: stt-rt.eu.soniox.com
