@@ -5,10 +5,13 @@ One Gemini session has exactly one target language. For two-way conversations we
 silent for speech that is already in its target language, so only the foreign side gets translated.
 """
 
+import array
 import asyncio
 import base64
 import contextlib
 import json
+import re
+import time
 
 from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import WebSocketException
@@ -21,6 +24,15 @@ DEFAULT_URL = (
 )
 
 
+_SENTENCE_END = re.compile(r"[.!?…。？！]\s*$")
+SILENCE_PEAK = 64  # PCM16 peak below this is treated as silence and not forwarded
+
+
+def _is_silent(b64: str) -> bool:
+    samples = array.array("h", base64.b64decode(b64))
+    return not samples or max(abs(min(samples)), abs(max(samples))) < SILENCE_PEAK
+
+
 class _Leg:
     """One upstream session translating into a single target language."""
 
@@ -30,15 +42,22 @@ class _Leg:
         self.source_text = ""
         self.translated_text = ""
         self.source_lang = ""
+        self.last_output = 0.0
 
 
 class GeminiLiveTranslate:
     name = "gemini_live"
 
     def __init__(
-        self, api_key: str, model: str, url: str = DEFAULT_URL, connect_timeout: float = 10.0
+        self,
+        api_key: str,
+        model: str,
+        url: str = DEFAULT_URL,
+        connect_timeout: float = 10.0,
+        idle_flush_seconds: float = 1.2,
     ) -> None:
         self._key, self._model, self._url, self._timeout = api_key, model, url, connect_timeout
+        self._idle_flush = idle_flush_seconds
         self._legs: list[_Leg] = []
         self._tasks: list[asyncio.Task] = []
         self._queue = EventQueue()
@@ -79,6 +98,31 @@ class GeminiLiveTranslate:
             await self.close()
             raise
         self._tasks = [asyncio.create_task(self._read(leg)) for leg in self._legs]
+        self._tasks.append(asyncio.create_task(self._idle_flusher()))
+
+    def _flush(self, leg: _Leg) -> None:
+        if leg.translated_text.strip():
+            self._queue.put(
+                {
+                    "type": "final_caption",
+                    "source_text": leg.source_text.strip(),
+                    "translated_text": leg.translated_text.strip(),
+                    "source_lang": leg.source_lang or "und",
+                    "target_lang": leg.target,
+                }
+            )
+            leg.source_text = ""
+        leg.translated_text = ""
+
+    async def _idle_flusher(self) -> None:
+        # Live Translate streams continuously and never sends turnComplete; a pause in the
+        # translated transcript closes the caption.
+        while True:
+            await asyncio.sleep(min(0.3, self._idle_flush / 2))
+            now = time.monotonic()
+            for leg in self._legs:
+                if leg.translated_text and now - leg.last_output >= self._idle_flush:
+                    self._flush(leg)
 
     def _handle(self, leg: _Leg, message: dict) -> None:
         if "error" in message:
@@ -99,8 +143,10 @@ class GeminiLiveTranslate:
                 self._queue.put({"type": "partial_caption", "text": leg.source_text, "lang": lang or "und"})
         if (out := content.get("outputTranscription")) and out.get("text"):
             leg.translated_text += out["text"]
+            leg.last_output = time.monotonic()
         for part in (content.get("modelTurn") or {}).get("parts", []):
-            if (blob := part.get("inlineData")) and blob.get("data"):
+            blob = part.get("inlineData") or {}
+            if blob.get("data") and not _is_silent(blob["data"]):
                 self._queue.put(
                     {
                         "type": "audio_chunk",
@@ -109,18 +155,12 @@ class GeminiLiveTranslate:
                         "sample_rate": OUTPUT_SAMPLE_RATE,
                     }
                 )
-        if content.get("turnComplete") or content.get("generationComplete"):
-            if leg.translated_text.strip():
-                self._queue.put(
-                    {
-                        "type": "final_caption",
-                        "source_text": leg.source_text.strip(),
-                        "translated_text": leg.translated_text.strip(),
-                        "source_lang": leg.source_lang or "und",
-                        "target_lang": leg.target,
-                    }
-                )
-            leg.source_text = leg.translated_text = ""
+        if (
+            content.get("turnComplete")
+            or content.get("generationComplete")
+            or _SENTENCE_END.search(leg.translated_text)
+        ):
+            self._flush(leg)
 
     async def _read(self, leg: _Leg) -> None:
         assert leg.ws is not None

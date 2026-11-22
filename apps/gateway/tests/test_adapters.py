@@ -52,7 +52,7 @@ def test_gemini_two_way_opens_one_session_per_target_and_maps_events():
             sc = {"inputTranscription": {"text": "Merhaba", "languageCode": "tr"}}
             await ws.send(json.dumps({"serverContent": sc}))
             if target == "en":
-                audio = base64.b64encode(b"\x01\x02" * 10).decode()
+                audio = base64.b64encode(b"\x00\x10" * 10).decode()  # audible (peak 4096)
                 await ws.send(json.dumps({"serverContent": {"outputTranscription": {"text": "Hello"}}}))
                 part = {"inlineData": {"mimeType": "audio/pcm;rate=24000", "data": audio}}
                 await ws.send(json.dumps({"serverContent": {"modelTurn": {"parts": [part]}}}))
@@ -263,3 +263,36 @@ def test_soniox_error_frame_becomes_provider_error():
 
     with pytest.raises(ProviderError, match="soniox_unauthenticated"):
         asyncio.run(main())
+
+
+def test_gemini_continuous_stream_flushes_on_pause_and_drops_silence():
+    """Live Translate never sends turnComplete; captions close on a pause, silence is not forwarded."""
+
+    async def handler(ws):
+        await ws.recv()
+        await ws.send(json.dumps({"setupComplete": {}}))
+        await ws.recv()
+        sc = {"inputTranscription": {"text": "Merhaba toplantı", "languageCode": "tr"}}
+        await ws.send(json.dumps({"serverContent": sc}))
+        await ws.send(json.dumps({"serverContent": {"outputTranscription": {"text": "Hello, the meeting"}}}))
+        silent = base64.b64encode(b"\x00\x00" * 200).decode()
+        for _ in range(3):
+            part = {"inlineData": {"mimeType": "audio/pcm;rate=24000", "data": silent}}
+            await ws.send(json.dumps({"serverContent": {"modelTurn": {"parts": [part]}}}))
+        await ws.wait_closed()
+
+    async def main():
+        async with serve(handler, "127.0.0.1", 0) as server:
+            adapter = GeminiLiveTranslate(
+                FAKE_KEY, "m", url=f"ws://127.0.0.1:{_port(server)}/ws", idle_flush_seconds=0.3
+            )
+            await adapter.start("tr", "en", "one_way")
+            await adapter.send_audio(PCM)
+            events = await _collect(adapter, lambda e: e["type"] == "final_caption")
+            await adapter.close()
+            return events
+
+    events = asyncio.run(main())
+    assert not any(e["type"] == "audio_chunk" for e in events)
+    assert events[-1]["translated_text"] == "Hello, the meeting"
+    assert events[-1]["source_text"] == "Merhaba toplantı"

@@ -44,3 +44,38 @@ uv run python -m bench.run --provider soniox_two_way --src tr --tgt en bench/sam
 Alfa hedefi (roadmap v2): kararlı altyazı p95 ≤ 1,5 sn, ilk anlamlı ses p95 ≤ 3,0 sn. Kalite (isim, sayı, olumsuzluk) çıktıdaki `finals` alanından elle puanlanır.
 
 Ölçüm bu makineden yapılır; mobil ağ ve Bluetooth etkisi ayrıca cihazda ölçülecek.
+
+## Sonuçlar — 2026-11-22 (ilk gerçek ölçüm)
+
+Ortam: geliştirme Mac'i, ev Wi-Fi; macOS sentetik sesleri (3 TR + 3 EN, 2,6–7,3 sn). Mobil ağ ve cihaz ölçümü yapılmadı.
+
+### Canlı konuşma — Gemini 3.5 Live Translate (iki yönlü, TR↔EN)
+
+| Metrik | p50 | p95 | Alfa hedefi |
+|---|---|---|---|
+| İlk kaynak altyazı | 2,9 sn | 3,1 sn | — |
+| İlk çevrilmiş ses | 3,1 sn | 3,3 sn | ≤ 3,0 sn (p95) — **sınırda, geçmedi** |
+| Konuşma sonu → çeviri altyazısı | 1,4 sn | 2,2 sn | ≤ 1,5 sn (p95) — **geçmedi** |
+| Tahmini maliyet | ~0,04 $ / konuşma-dk | | |
+
+Davranış notları (gerçek API'de gözlendi, belgede yazmıyor):
+- `turnComplete` **hiç gelmiyor**; akış süreklidir. Altyazı cümle sonu noktalamasında veya 1,2 sn duraklamada kapatılıyor.
+- Konuşma bitince her 250 ms sessiz ses parçası gelmeye devam ediyor → sessiz parçalar istemciye iletilmiyor.
+- `inputTranscription.languageCode` dolu geliyor (tr / en) → dil algılama kullanılabilir.
+
+Kalite:
+- "dört değil üç buçuk dolar" olumsuzluğu korundu.
+- Hata: "Merhaba. Toplantıyı gelecek salı saat 3'e alabilir miyiz?" → "Hello. / The meeting is next Tuesday at 3 PM?" — **"alabilir miyiz" (rica) kayboldu.**
+- Hata: İngilizce "three fifty" → "350" (tanıma belirsizliği; sentetik ses). Sayılarda iki dilli teyit ekranı gerekli.
+
+### Metin çevirisi — 4 cümle (TR→EN, EN→TR, TR→AR, talimat enjeksiyonu)
+
+| Sağlayıcı | Süre | Kalite | Enjeksiyon |
+|---|---|---|---|
+| **Kaptan** (Qwen3.6-35B) | **0,2–0,3 sn** | iyi; olumsuzluk ve sayı doğru | uygulamadı, çevirdi ✅ |
+| Claude (opus-5-5, effort low) | 1,0–1,5 sn | çok iyi | ✅ |
+| Gemini (3.8-flash, reasoning low) | 2,0–3,9 sn | iyi (varsayılan düşünmeyle 6–10 sn + **kesik çıktı**, düzeltildi) | ✅ |
+| OpenAI (gpt-5-mini) | 3,7–8,3 sn | iyi | ✅ |
+| Kimi (kimi-k3) | — | **hesap yetersiz bakiye nedeniyle askıda (429)** | — |
+
+Karar: zincir sırası Kaptan → Gemini → OpenAI → Claude → Kimi korunuyor; Claude, OpenAI'den hızlı olduğu için yedekte öne alınabilir (`TM_TRANSLATOR_CHAIN`).
