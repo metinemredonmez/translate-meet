@@ -192,9 +192,11 @@ def test_direction_specific_route_wins():
 
 
 def test_registry_only_has_configured_providers():
-    reg = build_registry(Settings(env="test"))
+    reg = build_registry(Settings(_env_file=None, env="test"))
     assert set(reg) == {"mock"}
-    reg = build_registry(Settings(env="test", openai_api_key="k" * 20, enable_mock_provider=False))
+    reg = build_registry(
+        Settings(_env_file=None, env="test", openai_api_key="k" * 20, enable_mock_provider=False)
+    )
     assert set(reg) == {"openai_realtime"}
     assert isinstance(reg["openai_realtime"].factory(), OpenAIRealtimeTranslate)
 
@@ -244,3 +246,8 @@ def test_all_providers_down_fails_closed_and_releases_nothing(settings, rt_token
         ws.send_json({"type": "start", "source_lang": "tr", "target_lang": "en"})
         _expect_close(ws, 1011)
     assert all(r["state"] != "reserved" for r in quota.reservations.values())
+
+
+def test_blank_key_lines_mean_not_configured():
+    reg = build_registry(Settings(_env_file=None, env="test", gemini_api_key="", soniox_api_key="  "))
+    assert set(reg) == {"mock"}

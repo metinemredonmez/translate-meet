@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _DEV_PREFIX = "dev-only"
@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     soniox_tts_voice: str = ""  # empty = captions only, no synthesized speech
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-realtime-translate"
+
+    @field_validator("gemini_api_key", "soniox_api_key", "openai_api_key", mode="before")
+    @classmethod
+    def _blank_is_missing(cls, value: object) -> object:
+        # An empty `KEY=` line in .env means "not configured", not "configured with an empty key".
+        return None if isinstance(value, str) and not value.strip() else value
 
     def assert_safe(self) -> None:
         if self.env != "prod":

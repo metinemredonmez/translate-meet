@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _DEV_PREFIX = "dev-only"
@@ -31,7 +31,16 @@ class Settings(BaseSettings):
     daily_text_chars: int = 20_000
     daily_realtime_seconds: int = 300
 
-    translator_provider: str = "mock"
+    translator_provider: str = "mock"  # mock | kaptan
+    kaptan_api_key: SecretStr | None = None
+    kaptan_base_url: str = "https://kaptan.isnet.net.tr/api/v1/inference/v1"
+    kaptan_model: str = "Qwen/Qwen3.6-35B-A3B-FP8"
+
+    @field_validator("kaptan_api_key", mode="before")
+    @classmethod
+    def _blank_is_missing(cls, value: object) -> object:
+        # An empty `KEY=` line in .env means "not configured", not "configured with an empty key".
+        return None if isinstance(value, str) and not value.strip() else value
 
     def assert_safe(self) -> None:
         """KEY-01 / OPS-01: refuse to start in prod with insecure defaults."""

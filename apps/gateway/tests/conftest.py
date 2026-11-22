@@ -42,6 +42,7 @@ class FakeQuota:
 @pytest.fixture
 def settings() -> Settings:
     return Settings(
+        _env_file=None,  # tests never read a developer's local .env
         env="test",
         auth_timeout_seconds=0.5,
         quota_tick_seconds=10,

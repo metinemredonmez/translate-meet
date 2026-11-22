@@ -23,6 +23,7 @@ def rsa_key():
 @pytest.fixture
 def settings(tmp_path) -> Settings:
     return Settings(
+        _env_file=None,  # tests never read a developer's local .env
         env="test",
         database_url=f"sqlite:///{tmp_path}/test.db",
         google_client_ids=[GOOGLE_AUD],
