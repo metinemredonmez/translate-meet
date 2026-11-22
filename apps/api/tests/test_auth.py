@@ -14,7 +14,7 @@ def test_healthz(client):
 
 def test_prod_refuses_insecure_defaults():
     with pytest.raises(RuntimeError, match="Unsafe production configuration"):
-        Settings(env="prod").assert_safe()
+        Settings(_env_file=None, env="prod").assert_safe()
 
 
 def test_oauth_login_and_me(client, login):

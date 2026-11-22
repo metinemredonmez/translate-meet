@@ -200,6 +200,6 @@ def test_prod_settings_safe_example_passes():
         rt_token_secret="b" * 40,
         internal_service_token="c" * 40,
         google_client_ids=["x"],
-        translator_provider="gemini",
+        translator_provider="chain",
     ).assert_safe()
     assert jwt  # keep import used

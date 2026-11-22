@@ -13,12 +13,14 @@ dependencies = [
     "pyjwt[crypto]>=2.10",
     "psycopg[binary]>=3.2",
     "httpx>=0.28",
+    "anthropic>=0.80",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.3",
     "httpx>=0.28",
+    "anthropic>=0.80",
     "ruff>=0.8",
     "pip-audit>=2.7",
 ]

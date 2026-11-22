@@ -10,12 +10,16 @@ Amaç: Türkçe dil çiftlerinde Gemini 3.5 Live Translate ve Soniox (two-way + 
    TM_SONIOX_API_KEY=...
    TM_SONIOX_TTS_VOICE=Maya   # boş bırakılırsa yalnız altyazı
    ```
-2. Metin çevirisi için Gao Kaptan (Qwen, veri Türkiye'de) — `apps/api/.env`:
+2. Metin çevirisi yedek zinciri — `apps/api/.env` (boş bırakılan atlanır, sıra `TM_TRANSLATOR_CHAIN` ile değişir):
    ```
-   TM_TRANSLATOR_PROVIDER=kaptan
-   TM_KAPTAN_API_KEY=...
+   TM_TRANSLATOR_PROVIDER=chain
+   TM_KAPTAN_API_KEY=...      # Kaptan → LLM → Anahtarlar (Qwen, veri Türkiye'de)
+   TM_GEMINI_API_KEY=...      # aistudio.google.com/apikey (canlı çeviri ile aynı anahtar)
+   TM_OPENAI_API_KEY=...      # platform.openai.com/api-keys
+   TM_ANTHROPIC_API_KEY=...   # platform.claude.com → API keys
+   TM_KIMI_API_KEY=...        # platform.kimi.ai/console/api-keys
    ```
-   Kaptan'da ses (STT/TTS) ucu yok; canlı konuşma Gemini/Soniox'ta kalır.
+   Hata veren sağlayıcı 2 dk atlanır; hepsi düşerse 502 ve kota geri bırakılır. Kaptan'da ses (STT/TTS) ucu yok; canlı konuşma Gemini/Soniox'ta kalır.
 3. Sentetik örnekler (macOS sesleri, kişisel veri yok): `apps/gateway/bench/make_samples.sh`
    Gerçek konuşma kaydı yalnız **rızalı** kişilerden; kayıtlar repoya girmez.
 

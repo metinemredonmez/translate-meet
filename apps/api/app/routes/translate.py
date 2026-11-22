@@ -14,6 +14,7 @@ from app.deps import current_user, get_db, get_settings
 from app.errors import ApiError
 from app.models import Translation, User
 from app.security import security_event
+from app.translators import run_translation
 
 router = APIRouter(prefix="/v1")
 
@@ -105,7 +106,7 @@ def translate_text(
 
     translator = request.app.state.translator
     try:
-        translated = translator.translate(body.text, body.source_lang, body.target_lang)
+        result = run_translation(translator, body.text, body.source_lang, body.target_lang)
     except Exception as exc:
         quota.release(db, entry.id, user.id)
         db.commit()
@@ -119,8 +120,8 @@ def translate_text(
         source_lang=body.source_lang,
         target_lang=body.target_lang,
         source_text=body.text,
-        translated_text=translated,
-        provider=translator.name,
+        translated_text=result.text,
+        provider=result.provider,
     )
     db.add(record)
     try:
