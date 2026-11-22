@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+/*
+ * Colours come only from the shared Translate Meet tokens (packages/shared/src/tokens.css,
+ * imported in the root layout). Tailwind's default palette is switched off so no component
+ * can fall back to a hard-coded colour. Light/dark follow the system via the tokens file.
+ */
+@theme inline {
+  --color-*: initial;
+  --color-background: var(--tm-background);
+  --color-surface: var(--tm-surface);
+  --color-surface-raised: var(--tm-surface-raised);
+  --color-border: var(--tm-border);
+  --color-fg: var(--tm-text);
+  --color-fg-muted: var(--tm-text-muted);
+  --color-primary: var(--tm-primary);
+  --color-on-primary: var(--tm-on-primary);
+  --color-accent: var(--tm-accent);
+  --color-danger: var(--tm-danger);
+  --color-success: var(--tm-success);
+  --color-warning: var(--tm-warning);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  html,
+  body {
+    background-color: var(--tm-background);
+    color: var(--tm-text);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--tm-accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--tm-accent) 35%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+/*
+ * Colors come only from @translate-meet/shared/tokens.css (imported in each root layout),
+ * which switches light/dark with prefers-color-scheme. Tailwind's default palette is removed
+ * so components cannot use hard-coded colors.
+ */
+@theme {
+  --color-*: initial;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@theme inline {
+  --color-background: var(--tm-background);
+  --color-surface: var(--tm-surface);
+  --color-surface-raised: var(--tm-surface-raised);
+  --color-border: var(--tm-border);
+  --color-foreground: var(--tm-text);
+  --color-muted: var(--tm-text-muted);
+  --color-primary: var(--tm-primary);
+  --color-on-primary: var(--tm-on-primary);
+  --color-accent: var(--tm-accent);
+  --color-danger: var(--tm-danger);
+  --color-success: var(--tm-success);
+  --color-warning: var(--tm-warning);
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* Anchored sections should not hide under the sticky header. */
+  [id] {
+    scroll-margin-top: 5rem;
+  }
+}

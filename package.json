@@ -11,7 +11,10 @@
     "lint:py": "cd apps/api && uv run ruff check . && cd ../gateway && uv run ruff check .",
     "dev:api": "cd apps/api && uv run uvicorn app.asgi:app --reload --port 8000",
     "dev:gateway": "cd apps/gateway && uv run uvicorn app.asgi:app --reload --port 8001",
-    "dev:mobile": "pnpm --filter @translate-meet/mobile start"
+    "dev:mobile": "pnpm --filter @translate-meet/mobile start",
+    "api:openapi": "cd apps/api && uv run python scripts/export_openapi.py && cd ../.. && pnpm --filter @translate-meet/shared gen",
+    "dev:panel": "pnpm --filter @translate-meet/panel dev",
+    "dev:web": "pnpm --filter @translate-meet/web dev"
   },
   "pnpm": {
     "overrides": {
